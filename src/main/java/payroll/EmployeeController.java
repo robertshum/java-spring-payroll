@@ -5,6 +5,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.http.ResponseEntity;
+
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,8 +43,15 @@ public class EmployeeController {
   // end::get-aggregate-root[]
 
   @PostMapping("/employees")
-  Employee newEmployee(@RequestBody Employee newEmployee) {
-    return repo.save(newEmployee);
+  ResponseEntity<?> newEmployee(@RequestBody Employee newEmployee) {
+
+    EntityModel<Employee> entityModel = assembler.toModel(repo.save(newEmployee));
+
+    // Spring MVC’s ResponseEntity is used to create an HTTP 201 Created status
+    // message.
+    return ResponseEntity //
+        .created(entityModel.getRequiredLink(IanaLinkRelations.SELF).toUri()) //
+        .body(entityModel);
   }
 
   @GetMapping("/employees/{id}")
@@ -55,8 +65,8 @@ public class EmployeeController {
 
   // Update 1 item
   @PutMapping("/employees/{id}")
-  Employee replaceEmployee(@RequestBody Employee newEmployee, @PathVariable Long id) {
-    return repo.findById(id)
+  ResponseEntity<?> replaceEmployee(@RequestBody Employee newEmployee, @PathVariable Long id) {
+    Employee updatedEmployee = repo.findById(id) //
         .map(employee -> {
           employee.setName(newEmployee.getName());
           employee.setRole(newEmployee.getRole());
@@ -66,10 +76,17 @@ public class EmployeeController {
           newEmployee.setId(id);
           return repo.save(newEmployee);
         });
+
+    EntityModel<Employee> entityModel = assembler.toModel(updatedEmployee);
+
+    return ResponseEntity //
+        .created(entityModel.getRequiredLink(IanaLinkRelations.SELF).toUri()) //
+        .body(entityModel);
   }
 
   @DeleteMapping("/employees/{id}")
-  void deleteEmployee(@PathVariable Long id) {
+  ResponseEntity<?> deleteEmployee(@PathVariable Long id) {
     repo.deleteById(id);
+    return ResponseEntity.noContent().build();
   }
 }
